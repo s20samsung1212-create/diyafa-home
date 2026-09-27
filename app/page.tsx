@@ -265,7 +265,9 @@ export default function HomePage() {
     }
     setFormError("");
 
-    const whatsappNumber = "971500000000";
+    // جلب رقم الواتساب من متغيرات البيئة وتنظيفه أوتوماتيكياً من الرموز والزائد
+    const rawNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "971523582885";
+    const whatsappNumber = rawNumber.replace(/[^0-9]/g, "");
 
     let itemsList = cart
       .map(
@@ -298,7 +300,7 @@ ${itemsList}${giftInfoDetails}
 📊 *الملخص المالي:*
 ▫️ *مجموع المنتجات:* ${subtotal} AED
 ▫️ *رسوم التوصيل (جميع الإمارات 🇦🇪):* ${deliveryFee} AED
-${isGiftOptionActive ? `▫️ *رسوم التغليف الإهداء:* ${giftFee} AED\n` : ""}💳 *الإجمالي النهائي:* *${total} AED*
+${isGiftOptionActive ? `▫️ *رسوم التغليف والإهداء:* ${giftFee} AED\n` : ""}💳 *الإجمالي النهائي:* *${total} AED*
 ━━━━━━━━━━━━━━━━━━
 
 📍 *يرجى تأكيد الاستلام ومشاركتنا موقع التوصيل (Location).*
@@ -428,7 +430,7 @@ ${isGiftOptionActive ? `▫️ *Gift Packaging Fee:* ${giftFee} AED\n` : ""}💳
         </div>
       </div>
 
-      {/* قائمة المنتجات - المحسّنة ببطاقات البيج الفاخرة والظلال الدافئة */}
+      {/* قائمة المنتجات */}
       <main className="max-w-6xl mx-auto px-6 pb-16 flex-1 w-full relative z-10">
         {loading ? (
           <div className="text-center py-20 text-[#a39281]">{currentT.loading}</div>
@@ -455,7 +457,7 @@ ${isGiftOptionActive ? `▫️ *Gift Packaging Fee:* ${giftFee} AED\n` : ""}💳
                     </div>
                   )}
 
-                  {/* أزرار المفضلة والمشاركة العائمة بتصميم زجاجي يناسب خلفية البيج */}
+                  {/* أزرار المفضلة والمشاركة */}
                   <div className="absolute top-4 rtl:left-4 ltr:right-4 z-10 flex items-center gap-2">
                     <button
                       onClick={() => toggleWishlist(product.id)}
@@ -482,7 +484,7 @@ ${isGiftOptionActive ? `▫️ *Gift Packaging Fee:* ${giftFee} AED\n` : ""}💳
                     </button>
                   )}
 
-                  {/* حاوية الصورة مع دمج الخلفيات الفاتحة بسلاسة */}
+                  {/* حاوية الصورة */}
                   <div 
                     className="h-72 bg-[#eae4d9] relative overflow-hidden cursor-pointer flex items-center justify-center p-4"
                     onClick={() => hasMultipleImages && openImageGallery(product)}
@@ -561,7 +563,7 @@ ${isGiftOptionActive ? `▫️ *Gift Packaging Fee:* ${giftFee} AED\n` : ""}💳
         )}
       </main>
 
-      {/* قسم خدمة الإهداء والتغليف الفاخر بتصميم متدرج ملكي */}
+      {/* قسم خدمة الإهداء والتغليف الفاخر */}
       <section className="max-w-4xl mx-auto px-6 mb-20 relative z-10 w-full">
         <div className="bg-gradient-to-b from-[#1a1612] to-[#120f0d] border border-[#e2c99a]/35 rounded-[2rem] p-6 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-40 h-40 bg-[#e2c99a]/5 rounded-full blur-3xl pointer-events-none" />
