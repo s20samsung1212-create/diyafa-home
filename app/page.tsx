@@ -45,6 +45,7 @@ interface CartItem extends Product {
 export default function HomePage() {
   const [lang, setLang] = useState<"ar" | "en">("ar");
   const [products, setProducts] = useState<Product[]>([]);
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("الكل");
@@ -77,9 +78,6 @@ export default function HomePage() {
       siteTitle: "DIYAFA HOME",
       subTitle: "ضيافة هوم",
       all: "الكل",
-      thermoses: "ترامس",
-      coffeeSets: "أطقم قهوة",
-      gifts: "هدايا راقية",
       banner: "توصيل سريع لجميع الإمارات (25 AED) 🇦🇪",
       heroTitle: "فخامة الضيافة في كل تفصيلة ☕",
       heroDesc: "تشكيلات راقية مصممة خصيصاً للمناسبات والمجالس، تعكس أصالة الضيافة برؤية معاصرة.",
@@ -120,9 +118,6 @@ export default function HomePage() {
       siteTitle: "DIYAFA HOME",
       subTitle: "LUXURY HOSPITALITY",
       all: "All",
-      thermoses: "Thermoses",
-      coffeeSets: "Coffee Sets",
-      gifts: "Luxury Gifts",
       banner: "Express Delivery Across UAE (25 AED) 🇦🇪",
       heroTitle: "Luxury Hospitality in Every Detail ☕",
       heroDesc: "Exquisite collections crafted for special occasions, blending authentic heritage with modern elegance.",
@@ -162,7 +157,9 @@ export default function HomePage() {
   };
 
   const currentT = t[lang];
-  const categories = [currentT.all, currentT.thermoses, currentT.coffeeSets, currentT.gifts];
+  
+  // دمج خيار "الكل" مع الفئات المجلوبة من قاعدة البيانات
+  const categories = [currentT.all, ...dbCategories];
 
   const toggleLanguage = () => {
     const nextLang = lang === "ar" ? "en" : "ar";
@@ -179,6 +176,13 @@ export default function HomePage() {
       setLoading(false);
     };
 
+    const fetchCategories = async () => {
+      const { data, error } = await supabase.from("categories").select("name").order("name");
+      if (!error && data) {
+        setDbCategories(data.map((c) => c.name));
+      }
+    };
+
     const trackVisit = async () => {
       try {
         await supabase.from("analytics").insert([{ page_path: "/", user_agent: navigator.userAgent }]);
@@ -186,6 +190,7 @@ export default function HomePage() {
     };
 
     fetchProducts();
+    fetchCategories();
     trackVisit();
   }, []);
 
@@ -411,7 +416,7 @@ ${isGiftOptionActive ? `▫️ *Gift Packaging Fee:* ${giftFee} AED\n` : ""}💳
         </p>
       </section>
 
-      {/* شريط فلترة الفئات */}
+      {/* شريط فلترة الفئات الديناميكي */}
       <div className="max-w-6xl mx-auto px-6 mb-10 w-full flex justify-center relative z-10">
         <div className="inline-flex p-1.5 bg-[#161310]/90 backdrop-blur-md border border-[#e2c99a]/20 rounded-full gap-1.5 sm:gap-2 flex-wrap justify-center shadow-lg">
           {categories.map((cat) => (
