@@ -75,7 +75,7 @@ export default function HomePage() {
   const t = {
     ar: {
       siteTitle: "DIYAFA HOME",
-      subTitle: "ضـ يـ ا فـ ة  هـ و م",
+      subTitle: "ضيافة هوم",
       all: "الكل",
       thermoses: "ترامس",
       coffeeSets: "أطقم قهوة",

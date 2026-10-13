@@ -36,6 +36,11 @@ interface Product {
   images_url?: string[];
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 export default function AdminDashboard() {
   // حالة التحقق من كلمة المرور
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -44,8 +49,15 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<"products" | "add" | "analytics" | "settings">("products");
   const [products, setProducts] = useState<Product[]>([]);
+  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [visitCount, setVisitCount] = useState(0);
+
+  // حالات إدارة الفئات (Modal)
+  const [isCatModalOpen, setIsCatModalOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editingCatName, setEditingCatName] = useState("");
 
   // حالة نموذج إضافة/تعديل منتج
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,7 +65,7 @@ export default function AdminDashboard() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
-  const [category, setCategory] = useState("ترامس");
+  const [category, setCategory] = useState("");
   const [mainImage, setMainImage] = useState("");
   const [additionalImages, setAdditionalImages] = useState<string[]>([""]);
 
@@ -64,17 +76,27 @@ export default function AdminDashboard() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const categories = ["ترامس", "أطقم قهوة", "هدايا راقية", "عام"];
-
-  // التحقق من الجلسة عند فتح الصفحة
+  // التحقق من الجلسة عند فتح الصفحة وجلب البيانات
   useEffect(() => {
     const authStatus = sessionStorage.getItem("diyafa_admin_auth");
     if (authStatus === "true") {
       setIsAuthenticated(true);
       fetchProducts();
       fetchAnalytics();
+      fetchCategories();
     }
   }, []);
+
+  // جلب الفئات من Supabase
+  const fetchCategories = async () => {
+    const { data, error } = await supabase.from("categories").select("*").order("name");
+    if (!error && data) {
+      setCategoriesList(data);
+      if (data.length > 0 && (!category || !data.some(c => c.name === category))) {
+        setCategory(data[0].name);
+      }
+    }
+  };
 
   // دالة تسجيل الدخول
   const handleLogin = (e: React.FormEvent) => {
@@ -85,6 +107,7 @@ export default function AdminDashboard() {
       setAuthError(false);
       fetchProducts();
       fetchAnalytics();
+      fetchCategories();
     } else {
       setAuthError(true);
     }
@@ -110,6 +133,43 @@ export default function AdminDashboard() {
     const { count, error } = await supabase.from("analytics").select("*", { count: "exact", head: true });
     if (!error && count !== null) {
       setVisitCount(count);
+    }
+  };
+
+  // دالة إضافة فئة جديدة
+  const handleAddCategory = async () => {
+    if (!newCatName.trim()) return;
+    const { error } = await supabase.from("categories").insert([{ name: newCatName.trim() }]);
+    if (error) {
+      alert("خطأ أثناء إضافة الفئة: " + error.message);
+    } else {
+      setNewCatName("");
+      fetchCategories();
+    }
+  };
+
+  // دالة تعديل اسم فئة
+  const handleUpdateCategory = async (id: string) => {
+    if (!editingCatName.trim()) return;
+    const { error } = await supabase.from("categories").update({ name: editingCatName.trim() }).eq("id", id);
+    if (error) {
+      alert("خطأ أثناء تحديث الفئة: " + error.message);
+    } else {
+      setEditingCatId(null);
+      fetchCategories();
+      fetchProducts();
+    }
+  };
+
+  // دالة حذف فئة
+  const handleDeleteCategory = async (id: string) => {
+    if (confirm("هل أنت متأكد من رغبتك في حذف هذه الفئة؟")) {
+      const { error } = await supabase.from("categories").delete().eq("id", id);
+      if (error) {
+        alert("خطأ أثناء الحذف: " + error.message);
+      } else {
+        fetchCategories();
+      }
     }
   };
 
@@ -193,7 +253,7 @@ export default function AdminDashboard() {
     setDescription("");
     setPrice("");
     setOriginalPrice("");
-    setCategory("ترامس");
+    setCategory(categoriesList.length > 0 ? categoriesList[0].name : "");
     setMainImage("");
     setAdditionalImages([""]);
   };
@@ -204,7 +264,7 @@ export default function AdminDashboard() {
     setDescription(product.description || "");
     setPrice(product.price.toString());
     setOriginalPrice(product.original_price ? product.original_price.toString() : "");
-    setCategory(product.category || "ترامس");
+    setCategory(product.category || (categoriesList.length > 0 ? categoriesList[0].name : ""));
     setMainImage(product.image_url || "");
     setAdditionalImages(product.images_url && product.images_url.length > 0 ? product.images_url : [""]);
     setActiveTab("add");
@@ -384,6 +444,13 @@ export default function AdminDashboard() {
               <TrendingUp className="w-4 h-4" />
               التحليلات والزيارات
             </button>
+
+            <button
+              onClick={() => setIsCatModalOpen(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold text-[#f3dfb7] bg-[#1c1814] hover:bg-[#26201b] border border-[#e2c99a]/30 transition-all shadow-md mt-4"
+            >
+              ⚙️ إدارة الفئات
+            </button>
           </nav>
         </div>
 
@@ -421,10 +488,11 @@ export default function AdminDashboard() {
               <PlusCircle className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setActiveTab("analytics")}
-              className={`p-2 rounded-xl text-xs font-bold ${activeTab === "analytics" ? "bg-[#e2c99a] text-[#0f0d0b]" : "bg-[#1c1814]"}`}
+              onClick={() => setIsCatModalOpen(true)}
+              className="p-2 rounded-xl text-xs font-bold bg-[#1c1814] text-[#f3dfb7] border border-[#e2c99a]/30"
+              title="إدارة الفئات"
             >
-              <TrendingUp className="w-4 h-4" />
+              ⚙️
             </button>
             <button
               onClick={handleLogout}
@@ -503,15 +571,24 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#a39281] mb-2">الفئة *</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-[#a39281]">الفئة *</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCatModalOpen(true)}
+                      className="text-[11px] text-[#e2c99a] hover:underline font-bold flex items-center gap-1"
+                    >
+                      ⚙️ إدارة الفئات
+                    </button>
+                  </div>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full bg-[#1c1814] border border-[#e2c99a]/20 rounded-2xl px-4 py-3 text-sm text-[#f5ebd9] focus:outline-none focus:border-[#e2c99a]"
                   >
-                    {categories.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    {categoriesList.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
                       </option>
                     ))}
                   </select>
@@ -681,14 +758,22 @@ export default function AdminDashboard() {
         {/* قسم عرض المنتجات وإدارتها (Products List & Actions) */}
         {activeTab === "products" && (
           <div className="bg-[#161310] p-6 rounded-3xl border border-[#e2c99a]/20 shadow-2xl">
-            <h2 className="text-xl font-black text-[#f8f3eb] mb-6 flex items-center justify-between">
+            <h2 className="text-xl font-black text-[#f8f3eb] mb-6 flex items-center justify-between flex-wrap gap-4">
               <span>قائمة منتجات المتجر الحالية</span>
-              <button
-                onClick={() => { resetForm(); setActiveTab("add"); }}
-                className="text-xs bg-gradient-to-r from-[#e2c99a] to-[#f3dfb7] text-[#0f0d0b] px-4 py-2 rounded-xl font-bold"
-              >
-                + إضافة منتج
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsCatModalOpen(true)}
+                  className="text-xs bg-[#1c1814] border border-[#e2c99a]/40 text-[#f3dfb7] px-4 py-2 rounded-xl font-bold hover:bg-[#26201b] transition-all"
+                >
+                  ⚙️ إدارة الفئات
+                </button>
+                <button
+                  onClick={() => { resetForm(); setActiveTab("add"); }}
+                  className="text-xs bg-gradient-to-r from-[#e2c99a] to-[#f3dfb7] text-[#0f0d0b] px-4 py-2 rounded-xl font-bold"
+                >
+                  + إضافة منتج
+                </button>
+              </div>
             </h2>
 
             {loading ? (
@@ -784,11 +869,11 @@ export default function AdminDashboard() {
               <div className="p-6 bg-[#1c1814] rounded-2xl border border-[#e2c99a]/15">
                 <span className="text-xs text-[#a39281] block mb-2 font-bold">توزيع الفئات المتاحة</span>
                 <div className="space-y-2 mt-3">
-                  {categories.map((cat) => {
-                    const count = products.filter((p) => p.category === cat).length;
+                  {categoriesList.map((cat) => {
+                    const count = products.filter((p) => p.category === cat.name).length;
                     return (
-                      <div key={cat} className="flex justify-between items-center text-xs">
-                        <span className="text-[#f5ebd9]">{cat}</span>
+                      <div key={cat.id} className="flex justify-between items-center text-xs">
+                        <span className="text-[#f5ebd9]">{cat.name}</span>
                         <span className="font-bold text-[#f3dfb7] bg-[#161310] px-2.5 py-1 rounded-lg border border-[#e2c99a]/20">
                           {count} منتجات
                         </span>
@@ -801,6 +886,87 @@ export default function AdminDashboard() {
           </div>
         )}
       </main>
+
+      {/* نافذة (Modal) إدارة الفئات */}
+      {isCatModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-[#161310] border border-[#e2c99a]/30 w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
+            <div className="flex justify-between items-center pb-4 mb-4 border-b border-[#e2c99a]/20">
+              <h3 className="text-base font-bold text-[#f8f3eb]">إدارة فئات المنتجات</h3>
+              <button onClick={() => setIsCatModalOpen(false)} className="text-[#a39281] hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* حقل إضافة فئة جديدة */}
+            <div className="flex gap-2 mb-6">
+              <input
+                type="text"
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                placeholder="اسم الفئة الجديدة..."
+                className="bg-[#1c1814] border border-[#e2c99a]/25 rounded-xl px-4 py-2 text-xs text-[#f5ebd9] flex-1 focus:outline-none focus:border-[#e2c99a]"
+              />
+              <button
+                type="button"
+                onClick={handleAddCategory}
+                className="bg-[#e2c99a] text-[#0f0d0b] px-4 py-2 rounded-xl font-bold text-xs hover:opacity-90 transition-opacity"
+              >
+                إضافة
+              </button>
+            </div>
+
+            {/* قائمة الفئات مع خيارات التعديل والحذف */}
+            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              {categoriesList.map((cat) => (
+                <div key={cat.id} className="flex justify-between items-center bg-[#1c1814] p-3 rounded-xl border border-[#e2c99a]/15">
+                  {editingCatId === cat.id ? (
+                    <input
+                      type="text"
+                      value={editingCatName}
+                      onChange={(e) => setEditingCatName(e.target.value)}
+                      className="bg-[#161310] border border-[#e2c99a] text-xs text-[#f5ebd9] px-2 py-1 rounded focus:outline-none flex-1 ml-2"
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="text-xs font-semibold text-[#f5ebd9]">{cat.name}</span>
+                  )}
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {editingCatId === cat.id ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateCategory(cat.id)}
+                        className="text-xs text-emerald-400 font-bold px-2 py-1 bg-emerald-950/40 rounded border border-emerald-500/25"
+                      >
+                        حفظ
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingCatId(cat.id);
+                          setEditingCatName(cat.name);
+                        }}
+                        className="text-xs text-[#e2c99a] px-2 py-1 bg-[#e2c99a]/10 rounded border border-[#e2c99a]/25"
+                      >
+                        تعديل
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      className="text-xs text-rose-400 px-2 py-1 bg-rose-950/40 rounded border border-rose-500/25"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
